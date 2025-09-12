@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VK Posts Analytics</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>VK Posts Analytics</h1>
+
+      <div class="grid-2">
+        <div>
+          <label for="version">API версія</label>
+          <input id="version" type="text" value="5.199" />
+        </div>
+        <div>
+          <label for="batch">Розмір батчу</label>
+          <input id="batch" type="text" value="80" />
+        </div>
+      </div>
+
+      <label for="urls">Список посилань (по одному в рядку):</label>
+      <textarea id="urls" placeholder="https://vk.com/wall-12345_67890"></textarea>
+
+      <div class="btns">
+        <button id="analyze" class="primary">Зібрати метрики</button>
+        <button id="export" class="secondary">Експорт CSV</button>
+        <button id="clear" class="secondary">Очистити</button>
+      </div>
+
+      <!-- Прогрес-бар -->
+      <div id="progress" class="progress" style="display:none;">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+
+      <div id="status" class="muted" style="margin-top:8px;"></div>
+
+      <div class="stats" id="totals" style="display:none;"></div>
+
+      <div class="table-wrap" id="tableWrap" style="display:none;">
+        <table id="table">
+          <thead id="tableHead">
+            <tr>
+              <th>Посилання на пост</th>
+              <th class="right sortable" data-sort="group_members">
+                <span class="th-inner">Охоплення <span class="arrow"></span></span>
+              </th>
+              <th class="right sortable" data-sort="views">
+                <span class="th-inner">Перегляди <span class="arrow"></span></span>
+              </th>
+              <th class="right sortable" data-sort="comments">
+                <span class="th-inner">Коментарі <span class="arrow"></span></span>
+              </th>
+              <th class="right sortable" data-sort="likes">
+                <span class="th-inner">Реакції <span class="arrow"></span></span>
+              </th>
+              <th class="right sortable" data-sort="reposts">
+                <span class="th-inner">Поширення <span class="arrow"></span></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
