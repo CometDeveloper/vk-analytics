@@ -1,3 +1,17 @@
+.under-maintenance {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  p {
+    color: red;
+    font-size: 25px;
+    font-weight: bold;
+  }
+}
+
+/* ===== База ===== */
 * { box-sizing: border-box; }
 
 html, body { height: 100%; }
@@ -23,19 +37,49 @@ body {
 
 h1 { margin: 0 0 15px; font-size: 22px; }
 
+/* Додано для блоку з глобальними інпутами */
+.global-controls { margin: 6px 0 12px; }
+
+/* ===== Таби ===== */
+.tabs { display: flex; gap: 8px; margin: 6px 0 14px; }
+.tab {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.tab.active {
+  background: #1a73e8;
+  color: white;
+  border-color: #1a73e8;
+}
+
+/* ===== Форми / поля ===== */
 label { display: block; font-size: 12px; color: #444; margin: 10px 0 6px; }
-textarea, input[type="text"] {
+
+input[type="text"],
+textarea {
   width: 100%;
-  padding: 10px 10px;
+  padding: 10px 12px;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: vertical;
 }
-textarea { height: 170px; resize: vertical; }
 
+/* висота textarea керується класами */
+textarea.tall  { height: 250px; }
+textarea.short { height: 150px; }
+
+/* сітка */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.btns { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+/* кнопки */
+.btns { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
 button {
   padding: 10px 15px;
   border: 0;
@@ -44,15 +88,17 @@ button {
   box-shadow: 0 1px 2px rgba(0,0,0,.08);
   font-weight: 600;
 }
-button.primary { background: #1a73e8; color: white; }
+button.primary   { background: #1a73e8; color: white; }
 button.secondary { background: #eef2f7; color: #111; }
+button:disabled  { opacity: .6; cursor: not-allowed; }
 
-.muted { color: #666; font-size: 12px; }
-.small { font-size: 12px; }
-.ok { color: #0a7d2a; }
-.err { color: #b00020; }
+/* ===== Системні статуси (універсально) ===== */
+.status { font-size: 12px; margin-top: 8px; }
+.status.muted { color: #666; }
+.status.ok    { color: #0a7d2a; }
+.status.err   { color: #b00020; }
 
-/* Прогрес-бар */
+/* ===== Прогрес-бар ===== */
 .progress { margin-top: 10px; }
 .progress-bar {
   height: 10px;
@@ -69,7 +115,16 @@ button.secondary { background: #eef2f7; color: #111; }
 }
 .progress-text { font-size: 12px; color: #555; margin-top: 6px; }
 
-/* Плашка з підсумками */
+/* ===== Контейнери результатів (спільні) ===== */
+.results-box {
+  margin-top: 10px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+
+/* ===== Плашка з підсумками ===== */
 .stats {
   margin-top: 15px;
   padding: 10px;
@@ -78,7 +133,7 @@ button.secondary { background: #eef2f7; color: #111; }
   font-size: 14px;
 }
 
-/* Таблиця */
+/* ===== Таблиця аналітики ===== */
 .table-wrap {
   margin-top: 10px;
   max-height: 420px;
@@ -87,6 +142,7 @@ button.secondary { background: #eef2f7; color: #111; }
   border: 1px solid #eee;
   background: #fff;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -126,6 +182,7 @@ th.sorted-desc .arrow {
   opacity: .9;
 }
 
+/* ширини колонок */
 td:first-child, th:first-child { width: 40%; }
 td:nth-child(2), th:nth-child(2) { width: 12%; }
 td:nth-child(3), th:nth-child(3) { width: 12%; }
@@ -133,10 +190,26 @@ td:nth-child(4), th:nth-child(4) { width: 12%; }
 td:nth-child(5), th:nth-child(5) { width: 12%; }
 td:nth-child(6), th:nth-child(6) { width: 12%; }
 
+/* шрифт для посилань */
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; word-break: break-all; }
+.found-link { font-size: 14px; color: black; text-decoration: none; }
 
-/* Червоні рядки для проблемних постів */
+/* помилкові рядки */
 tr.error-row td {
   background: #ffecec;
   color: #b00020;
 }
+
+/* ===== Список результатів пошуку ===== */
+.list-wrap {
+  margin-top: 10px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+.list-head { font-size: 14px; font-weight: bolder; margin-bottom: 10px; }
+.links-list { margin: 0; padding-left: 18px; }
+.links-list li { margin: 6px 0; word-break: break-all; }
+.links-list a { color: #1a73e8; text-decoration: none; }
+.links-list a:hover { text-decoration: underline; }

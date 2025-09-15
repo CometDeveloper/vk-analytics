@@ -3,69 +3,105 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Posts Analytics</title>
+    <title>Аналітика постів</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="favicon.ico" type="image/x-icon">
   </head>
   <body>
-    <main class="container">
-      <h1>VK Posts Analytics</h1>
+    <div class="under-maintenance">
+      <p>Застосунок тимчасово не працює.</p>
+      <p>Проводяться ремонтні роботи.</p>
+    </div>
 
-      <div class="grid-2">
+    <main class="container">
+      <h1>Аналітика постів Vkontakte</h1>
+
+      <!-- Глобальні налаштування (спільні для обох вкладок) -->
+      <div class="grid-2 global-controls">
         <div>
           <label for="version">API версія</label>
           <input id="version" type="text" value="5.199" />
         </div>
         <div>
           <label for="batch">Розмір батчу</label>
-          <input id="batch" type="text" value="80" />
+          <input id="batch" type="text" value="100" />
         </div>
       </div>
 
-      <label for="urls">Список посилань (по одному в рядку):</label>
-      <textarea id="urls" placeholder="https://vk.com/wall-12345_67890"></textarea>
-
-      <div class="btns">
-        <button id="analyze" class="primary">Зібрати метрики</button>
-        <button id="export" class="secondary">Експорт CSV</button>
-        <button id="clear" class="secondary">Очистити</button>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button id="tabAnalytics" class="tab active">Аналітика</button>
+        <button id="tabSearch" class="tab">Пошук постів</button>
       </div>
 
-      <!-- Прогрес-бар -->
-      <div id="progress" class="progress" style="display:none;">
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-text" id="progressText">0%</div>
-      </div>
+      <!-- Аналітика -->
+      <section id="analyticsSection">
+        <label for="urls">Список посилань (по одному в рядку):</label>
+        <textarea id="urls" class="tall" placeholder="https://vk.com/wall-12345_67890"></textarea>
 
-      <div id="status" class="muted" style="margin-top:8px;"></div>
+        <div class="btns">
+          <button id="analyze" class="primary">Зібрати метрики</button>
+          <button id="export" class="secondary">Експорт CSV</button>
+          <button id="clear" class="secondary">Очистити</button>
+        </div>
 
-      <div class="stats" id="totals" style="display:none;"></div>
+        <!-- Прогрес-бар -->
+        <div id="progress" class="progress" style="display:none;">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-text" id="progressText">0%</div>
+        </div>
 
-      <div class="table-wrap" id="tableWrap" style="display:none;">
-        <table id="table">
-          <thead id="tableHead">
-            <tr>
-              <th>Посилання на пост</th>
-              <th class="right sortable" data-sort="group_members">
-                <span class="th-inner">Охоплення <span class="arrow"></span></span>
-              </th>
-              <th class="right sortable" data-sort="views">
-                <span class="th-inner">Перегляди <span class="arrow"></span></span>
-              </th>
-              <th class="right sortable" data-sort="comments">
-                <span class="th-inner">Коментарі <span class="arrow"></span></span>
-              </th>
-              <th class="right sortable" data-sort="likes">
-                <span class="th-inner">Реакції <span class="arrow"></span></span>
-              </th>
-              <th class="right sortable" data-sort="reposts">
-                <span class="th-inner">Поширення <span class="arrow"></span></span>
-              </th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+        <div id="status" class="status muted"></div>
+        <div class="stats" id="totals" style="display:none;"></div>
+
+        <div id="tableWrap" class="results-box table-wrap" style="display: none;">
+          <table id="table">
+            <thead id="tableHead">
+              <tr>
+                <th>Посилання на пост</th>
+                <th class="right sortable" data-sort="group_members">
+                  <span class="th-inner">Охоплення <span class="arrow"></span></span>
+                </th>
+                <th class="right sortable" data-sort="views">
+                  <span class="th-inner">Перегляди <span class="arrow"></span></span>
+                </th>
+                <th class="right sortable" data-sort="comments">
+                  <span class="th-inner">Коментарі <span class="arrow"></span></span>
+                </th>
+                <th class="right sortable" data-sort="likes">
+                  <span class="th-inner">Реакції <span class="arrow"></span></span>
+                </th>
+                <th class="right sortable" data-sort="reposts">
+                  <span class="th-inner">Поширення <span class="arrow"></span></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Пошук постів -->
+      <section id="searchSection" style="display:none;">
+        <label for="searchText">Текст для пошуку:</label>
+        <textarea id="searchText" class="tall" placeholder="Встав сюди текст з твого поста..."></textarea>
+
+        <div class="btns">
+          <button id="searchBtn" class="primary">Шукати пости</button>
+          <button id="copyLinksBtn" class="secondary" disabled>Скопіювати всі посилання</button>
+        </div>
+
+        <p id="important-info" class="status muted">Важливо: результат пошуку може включати пости, які не пов'язані з вашим матеріалом. Рекомендується перевіряти кожне знайдене посилання окремо.</p>
+
+        <p id="searchStatus" class="status muted"></p>
+
+        <div id="searchResultsWrap" class="results-box list-wrap" style="display: none;">
+          <div class="list-head">
+            Знайдено: <span id="searchCount">0</span>
+          </div>
+          <ol id="searchList" class="links-list"></ol>
+        </div>
+      </section>
     </main>
 
     <script src="script.js"></script>

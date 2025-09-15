@@ -1,8 +1,87 @@
-/* ===== VK Posts Analytics – web (GitHub Pages) ===== */
+/* ===== VK Posts Analytics + Пошук постів ===== */
 const $ = (sel) => document.querySelector(sel);
 
-/* Адреса worker */
+/* ===== VK API через Cloudflare Worker-проксі ===== */
 const PROXY_API = "https://vk-analytics-worker.s49254177.workers.dev/vk";
+
+async function vk(method, params, version) {
+  const q = new URLSearchParams({ ...params });
+  if (version) q.set("v", version);
+  const res = await fetch(`${PROXY_API}/${method}?${q.toString()}`);
+  const data = await res.json();
+  if (data.error) throw new Error(`VK API error ${data.error.error_code}: ${data.error.error_msg}`);
+  return data.response;
+}
+
+function setStatus(el, variant = null, text) {
+  if (!el) return;
+  el.classList.add("status");
+  el.classList.remove("ok", "err", "muted");
+  if (variant) el.classList.add(variant);
+  if (typeof text === "string") el.textContent = text;
+}
+
+const SEARCH_FILTER = {
+  minTokensForExact: 4,   // лишаємо як є (але це лише для додаткового "плюса")
+
+  // Дуже м’які пороги
+  jaccardLong: 0.35,      // було 0.60
+  jaccardShort: 0.55,     // було 0.80
+
+  // Майже не обмежуємо довжину поста
+  minPostLenAbs: 5,       // було 20
+  minPostLenRel: 0.10,    // було 0.40
+
+  // ВИМКНЕНО: додаткові жорсткі фільтри
+  communitiesOnly: false, // не відсікаємо користувачів
+  excludeReposts: false,  // не відсікаємо репости
+  minCyrillicRatio: 0     // не вимагаємо кирилиці
+};
+
+function postPassesFilters(item, qRaw) {
+  // Базова санітарія
+  const owner = item?.owner_id;
+  const id    = item?.id;
+  const text  = item?.text || "";
+  if (typeof owner !== "number" || typeof id !== "number") return false;
+
+  // Легкі вимоги до вмісту
+  const normText = normalizeText(text);
+  if (!normText) return false;
+
+  const qNorm   = normalizeText(qRaw);
+  const qTokens = tokenize(qRaw);
+  const minLen  = Math.max(SEARCH_FILTER.minPostLenAbs, Math.floor(qNorm.length * SEARCH_FILTER.minPostLenRel));
+  if (normText.length < minLen) return false;
+
+  // Вимкнені “суворі” фільтри залишаємо як умови тільки якщо вмикатимеш знову
+  if (SEARCH_FILTER.communitiesOnly && !(owner < 0)) return false;
+  if (SEARCH_FILTER.excludeReposts && Array.isArray(item?.copy_history) && item.copy_history.length > 0) return false;
+  if (SEARCH_FILTER.minCyrillicRatio > 0 && cyrillicRatio(text) < SEARCH_FILTER.minCyrillicRatio) return false;
+
+  // --- ЛОЯЛЬНА МЕТРИКА СХОЖОСТІ ---
+  // 1) точне входження (після нормалізації) — автоматичний пропуск
+  if (qTokens.length >= SEARCH_FILTER.minTokensForExact && hasExactPhrase(text, qRaw)) return true;
+
+  // 2) Jaccard за токенами — занижений поріг
+  const postTokens = tokenize(text);
+  const sim = jaccard(postTokens, qTokens);
+  const thr = (qTokens.length >= SEARCH_FILTER.minTokensForExact) ? SEARCH_FILTER.jaccardLong : SEARCH_FILTER.jaccardShort;
+  if (sim >= thr) return true;
+
+  // 3) Страхувальна умова: є хоча б 2 спільних токени (після нормалізації)
+  let overlap = 0;
+  const setQ = new Set(qTokens);
+  for (const t of postTokens) {
+    if (setQ.has(t)) {
+      overlap++;
+      if (overlap >= 2) return true;
+    }
+  }
+
+  // Якщо нічого з вище — відхиляємо
+  return false;
+}
 
 /* ---------- Форматування чисел ---------- */
 function fmt(num) {
@@ -10,7 +89,7 @@ function fmt(num) {
   return Number(num).toLocaleString("uk-UA");
 }
 
-/* ---------- Сортування ---------- */
+/* ---------- Сортування для аналітики ---------- */
 let currentSort = { key: "views", dir: "desc" };
 function sortRows(rows) {
   const { key, dir } = currentSort;
@@ -60,6 +139,7 @@ function initSorting() {
 function showProgress(show) {
   $("#progress").style.display = show ? "block" : "none";
 }
+
 function setProgress(pct, text = "") {
   const fill = $("#progressFill");
   const lbl = $("#progressText");
@@ -69,25 +149,12 @@ function setProgress(pct, text = "") {
   lbl.textContent = text || (v + "%");
 }
 
-/* ---------- VK API оболонка ---------- */
-async function vk(method, params, version) {
-  const q = new URLSearchParams({ ...params });
-  if (version) q.set("v", version); // або покладатися на VK_DEFAULT_VERSION, задану в Worker
-  const res = await fetch(`${PROXY_API}/${method}?${q.toString()}`);
-  const data = await res.json();
-  if (data.error) {
-    throw new Error(`VK API error ${data.error.error_code}: ${data.error.error_msg}`);
-  }
-  return data.response;
-}
-
-/* ---------- Нормалізатори відповідей ---------- */
+/* ---------- Нормалізатори ---------- */
 function normalizeWallGetById(resp) {
   if (!resp) return [];
   if (Array.isArray(resp)) return resp;
   if (Array.isArray(resp.items)) return resp.items;
   if (resp.id && resp.owner_id) return [resp];
-  console.warn("[VK-AN] unexpected wall.getById response:", resp);
   return [];
 }
 function normalizeGroupsGetById(resp) {
@@ -97,27 +164,26 @@ function normalizeGroupsGetById(resp) {
   if (Array.isArray(arr)) return arr;
   if (Array.isArray(arr.items)) return arr.items;
   if (arr.id) return [arr];
-  console.warn("[VK-AN] unexpected groups.getById response:", arr);
   return [];
 }
 
-/* ---------- Допоміжні ---------- */
+/* ---------- Парсер URL постів ---------- */
 const WALL_RE = /wall(-?\d+)_(\d+)/;
 function parsePostId(url) {
   try {
     const u = new URL(url.trim());
     const m1 = u.pathname.match(WALL_RE);
-    if (m1) return { owner_id: parseInt(m1[1], 10), post_id: parseInt(m1[2], 10) };
+    if (m1) return { owner_id: parseInt(m1[1], 10), post_id: parseInt(m1[2], 10), url };
     const w = u.searchParams.get("w");
     if (w) {
       const m2 = w.match(WALL_RE);
-      if (m2) return { owner_id: parseInt(m2[1], 10), post_id: parseInt(m2[2], 10) };
+      if (m2) return { owner_id: parseInt(m2[1], 10), post_id: parseInt(m2[2], 10), url };
     }
   } catch (_) {}
   return null;
 }
 
-/* ---------- Отримання постів ---------- */
+/* ---------- Отримання постів (batch + fallback) ---------- */
 async function fetchSinglePost(key, version) {
   try {
     const resp = await vk("wall.getById", { posts: key }, version);
@@ -192,10 +258,7 @@ function uniqueReachFromRows(rows) {
   for (const r of rows) {
     if (!r.error && r.owner_id < 0 && typeof r.group_members === "number") {
       const gid = Math.abs(r.owner_id);
-      if (!seen.has(gid)) {
-        seen.add(gid);
-        sum += r.group_members;
-      }
+      if (!seen.has(gid)) { seen.add(gid); sum += r.group_members; }
     }
   }
   return sum;
@@ -219,7 +282,7 @@ function sumTotals(rows) {
   return totals;
 }
 
-/* ---------- Рендер ---------- */
+/* ---------- Рендер аналітики ---------- */
 function renderTable(rows, totals) {
   const tbody = $("#table tbody");
   tbody.innerHTML = "";
@@ -229,11 +292,11 @@ function renderTable(rows, totals) {
     if (r.error) tr.classList.add("error-row");
     tr.innerHTML = `
       <td class="small"><div class="mono">${r.url}</div></td>
-      <td class="right">${fmt(r.group_members)}</td>
-      <td class="right">${fmt(r.views)}</td>
-      <td class="right">${fmt(r.comments)}</td>
-      <td class="right">${fmt(r.likes)}</td>
-      <td class="right">${fmt(r.reposts)}</td>
+      <td>${fmt(r.group_members)}</td>
+      <td>${fmt(r.views)}</td>
+      <td>${fmt(r.comments)}</td>
+      <td>${fmt(r.likes)}</td>
+      <td>${fmt(r.reposts)}</td>
     `;
     tbody.appendChild(tr);
   }
@@ -276,13 +339,11 @@ function toBlobAndDownload(filename, content, type = "text/plain;charset=utf-8")
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
-/* ---------- Основна логіка ---------- */
+/* ---------- Основна логіка АНАЛІТИКИ ---------- */
 async function analyze() {
   $("#status").textContent = "";
   showProgress(true);
@@ -295,8 +356,7 @@ async function analyze() {
     .map(s => s.trim().replace(/\s+/g, "_"))
     .filter(Boolean);
 
-  const parsed = [];
-  const bad = [];
+  const parsed = []; const bad = [];
   for (const line of lines) {
     const p = parsePostId(line);
     if (p) parsed.push({ ...p, url: line });
@@ -305,7 +365,7 @@ async function analyze() {
   if (!parsed.length) {
     showProgress(false);
     $("#status").textContent = "Не знайшов жодного валідного посилання на пост.";
-    $("#status").className = "err";
+    setStatus($("#status"), "err");
     $("#tableWrap").style.display = "none";
     $("#totals").style.display = "none";
     return;
@@ -318,14 +378,6 @@ async function analyze() {
   const groupIds = [];
   for (const p of parsed) if (p.owner_id < 0) groupIds.push(Math.abs(p.owner_id));
   const groupsMap = await fetchGroupsMembersCounts(groupIds, version, (pct, label) => setProgress(pct, label));
-
-  const postMap = Object.create(null);
-  for (const item of fetched) {
-    if (item.ok) {
-      const p = item.post;
-      postMap[`${p.owner_id}_${p.id}`] = p;
-    }
-  }
 
   const rowsRaw = parsed.map(p => {
     const key = `${p.owner_id}_${p.post_id}`;
@@ -358,34 +410,150 @@ async function analyze() {
 
   const msg = [];
   if (bad.length) msg.push(`Пропущено невалідні рядки: ${bad.length}`);
+  
   $("#status").textContent = msg.join(" ");
-  $("#status").className = msg.length ? "muted" : "";
+  setStatus($("#status"), msg.length ? "muted" : "");
+}
+
+/* ---------- Логіка ПОШУКУ ПОСТІВ ---------- */
+
+async function searchPosts() {
+  const qRaw = ($("#searchText").value || "").trim();
+  const status = $("#searchStatus");
+  const list = $("#searchList");
+  const wrap = $("#searchResultsWrap");
+  const countEl = $("#searchCount");
+  const btnCopy = $("#copyLinksBtn");
+
+  setStatus(status, "muted", "");
+  list.innerHTML = "";
+  wrap.style.display = "none";
+  btnCopy.disabled = true;
+  countEl.textContent = "0";
+
+  if (!qRaw) {
+    setStatus(status, "err", "Введи текст для пошуку.");
+    return;
+  }
+
+  setStatus(status, "muted", "Пошук...");
+
+  try {
+    const resp = await vk("newsfeed.search", { q: qRaw, count: 200 });
+    const items = Array.isArray(resp?.items) ? resp.items : [];
+
+    const links = [];
+    const seen = new Set();
+
+    for (const it of items) {
+      // відсіювання поганих результатів
+      if (!postPassesFilters(it, qRaw)) continue;
+
+      const owner = it?.owner_id;
+      const id = it?.id;
+      if (typeof owner !== "number" || typeof id !== "number") continue;
+
+      const href = `https://vk.com/wall${owner}_${id}`;
+      if (seen.has(href)) continue;
+      seen.add(href);
+      links.push(href);
+    }
+
+    if (!links.length) {
+      setStatus(status, "muted", "Нічого не знайдено (після фільтрації).");
+      return;
+    }
+
+    // показ результатів
+    for (const href of links) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      li.classList.add('found-link');
+      a.href = href; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = href;
+      li.appendChild(a);
+      list.appendChild(li);
+    }
+
+    wrap.style.display = "block";
+    countEl.textContent = String(links.length);
+    setStatus(status, "ok", "Готово.");
+    btnCopy.disabled = false;
+    window.__searchLinks = links;
+
+  } catch (e) {
+    setStatus(status, "err", "Помилка пошуку: " + (e.message || e));
+  }
+}
+
+/* ---------- Копіювати всі посилання ---------- */
+async function copyAllLinks() {
+  const links = window.__searchLinks || [];
+  if (!links.length) return;
+  const text = links.join("\n");
+  try {
+    await navigator.clipboard.writeText(text);
+    $("#searchStatus").textContent = "Посилання скопійовано у буфер.";
+    setStatus($("#searchStatus"), "ok");
+  } catch {
+    // Фолбек
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy");
+    document.body.removeChild(ta);
+    $("#searchStatus").textContent = "Посилання скопійовано (fallback).";
+    setStatus($("#searchStatus"), "ok");
+  }
+}
+
+/* ---------- Tabs ---------- */
+function switchTab(tab) {
+  const A = $("#analyticsSection");
+  const S = $("#searchSection");
+  const bA = $("#tabAnalytics");
+  const bS = $("#tabSearch");
+
+  if (tab === "analytics") {
+    A.style.display = "block"; S.style.display = "none";
+    bA.classList.add("active"); bS.classList.remove("active");
+  } else {
+    A.style.display = "none"; S.style.display = "block";
+    bA.classList.remove("active"); bS.classList.add("active");
+  }
 }
 
 /* ---------- Події ---------- */
 document.addEventListener("DOMContentLoaded", () => {
-  $("#urls").value = "";
+  // Аналітика
   initSorting();
-
-  $("#analyze").addEventListener("click", analyze);
-  $("#export").addEventListener("click", () => {
+  $("#analyze")?.addEventListener("click", analyze);
+  $("#export")?.addEventListener("click", () => {
     const rows = window.__rows || [];
     if (!rows.length) {
       $("#status").textContent = "Немає даних для експорту.";
-      $("#status").className = "muted";
+      setStatus($("#status"), "muted");
       return;
     }
     const csv = toCSV(rows);
     toBlobAndDownload("vk_analytics.csv", csv, "text/csv;charset=utf-8");
   });
-  $("#clear").addEventListener("click", () => {
+  $("#clear")?.addEventListener("click", () => {
     $("#urls").value = "";
     $("#tableWrap").style.display = "none";
     $("#totals").style.display = "none";
     $("#status").textContent = "Очищено.";
-    $("#status").className = "muted";
+    setStatus($("#status"), "muted");
     showProgress(false);
     window.__rows = [];
     window.__totals = {};
   });
+
+  // Пошук
+  $("#searchBtn")?.addEventListener("click", searchPosts);
+  $("#copyLinksBtn")?.addEventListener("click", copyAllLinks);
+
+  // Tabs
+  $("#tabAnalytics")?.addEventListener("click", () => switchTab("analytics"));
+  $("#tabSearch")?.addEventListener("click", () => switchTab("search"));
 });
