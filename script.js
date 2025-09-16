@@ -1,5 +1,5 @@
 /* ===== VK Posts Analytics + Пошук постів ===== */
-const $ = (sel) => document.querySelector(sel);
+const element = (sel) => document.querySelector(sel);
 
 /* ===== VK API через Cloudflare Worker-проксі ===== */
 const PROXY_API = "https://vk-analytics-worker.s49254177.workers.dev/vk";
@@ -11,14 +11,6 @@ async function vk(method, params, version) {
   const data = await res.json();
   if (data.error) throw new Error(`VK API error ${data.error.error_code}: ${data.error.error_msg}`);
   return data.response;
-}
-
-function setStatus(el, variant = null, text) {
-  if (!el) return;
-  el.classList.add("status");
-  el.classList.remove("ok", "err", "muted");
-  if (variant) el.classList.add(variant);
-  if (typeof text === "string") el.textContent = text;
 }
 
 const SEARCH_FILTER = {
@@ -37,6 +29,64 @@ const SEARCH_FILTER = {
   excludeReposts: false,  // не відсікаємо репости
   minCyrillicRatio: 0     // не вимагаємо кирилиці
 };
+
+/* ===== Допоможні функції ===== */
+function setStatus(el, variant = null, text) {
+  if (!el) return;
+  el.classList.add("status");
+  el.classList.remove("ok", "err", "muted");
+  if (variant) el.classList.add(variant);
+  if (typeof text === "string") el.textContent = text;
+}
+
+// ===== Text utils for search =====
+// Приводимо до нижнього регістру, нормалізуємо Unicode, замінюємо ё->е,
+// прибираємо пунктуацію і зайві пробіли
+function normalizeText(s) {
+  if (!s) return "";
+  return s
+    .toString()
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ") // все, що не літера/цифра/пробіл -> пробіл
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Масив слів після normalize
+function tokenize(s) {
+  const n = normalizeText(s);
+  return n ? n.split(" ") : [];
+}
+
+// Частка кирилиці в рядку (0..1) — якщо раптом знову знадобиться
+function cyrillicRatio(s) {
+  if (!s) return 0;
+  const all = [...s];
+  const cyr = (s.match(/\p{Script=Cyrillic}/gu) || []).length;
+  return all.length ? cyr / all.length : 0;
+}
+
+// Jaccard схожість множин токенів (0..1)
+function jaccard(tokensA, tokensB) {
+  const A = new Set(tokensA);
+  const B = new Set(tokensB);
+  let inter = 0;
+  for (const t of A) if (B.has(t)) inter++;
+  const union = A.size + B.size - inter || 1;
+  return inter / union;
+}
+
+// Пошук точного входження нормалізованої фрази
+function hasExactPhrase(text, query) {
+  const t = normalizeText(text);
+  const q = normalizeText(query);
+  if (!q) return false;
+  // пошук підрядка по нормалізованому тексту
+  return t.includes(q);
+}
+
 
 function postPassesFilters(item, qRaw) {
   // Базова санітарія
@@ -137,12 +187,12 @@ function initSorting() {
 
 /* ---------- Прогрес ---------- */
 function showProgress(show) {
-  $("#progress").style.display = show ? "block" : "none";
+  element("#progress").style.display = show ? "block" : "none";
 }
 
 function setProgress(pct, text = "") {
-  const fill = $("#progressFill");
-  const lbl = $("#progressText");
+  const fill = element("#progressFill");
+  const lbl = element("#progressText");
   if (!fill || !lbl) return;
   const v = Math.max(0, Math.min(100, Math.round(pct)));
   fill.style.width = v + "%";
@@ -201,7 +251,7 @@ async function fetchSinglePost(key, version) {
 
 async function fetchPosts(keys, version, onProgress) {
   const out = [];
-  const batchSize = parseInt($("#batch").value, 10) || 80;
+  const batchSize = parseInt(element("#batch").value, 10) || 80;
   let done = 0;
 
   for (let i = 0; i < keys.length; i += batchSize) {
@@ -284,7 +334,7 @@ function sumTotals(rows) {
 
 /* ---------- Рендер аналітики ---------- */
 function renderTable(rows, totals) {
-  const tbody = $("#table tbody");
+  const tbody = element("#table tbody");
   tbody.innerHTML = "";
 
   for (const r of rows) {
@@ -301,9 +351,9 @@ function renderTable(rows, totals) {
     tbody.appendChild(tr);
   }
 
-  $("#tableWrap").style.display = rows.length ? "block" : "none";
+  element("#tableWrap").style.display = rows.length ? "block" : "none";
 
-  const box = $("#totals");
+  const box = element("#totals");
   if (!rows.length) {
     box.style.display = "none";
     return;
@@ -345,13 +395,13 @@ function toBlobAndDownload(filename, content, type = "text/plain;charset=utf-8")
 
 /* ---------- Основна логіка АНАЛІТИКИ ---------- */
 async function analyze() {
-  $("#status").textContent = "";
+  element("#status").textContent = "";
   showProgress(true);
   setProgress(0, "Обробка…");
 
-  const version = $("#version").value.trim() || "5.199";
+  const version = element("#version").value.trim() || "5.199";
 
-  const lines = $("#urls").value
+  const lines = element("#urls").value
     .split("\n")
     .map(s => s.trim().replace(/\s+/g, "_"))
     .filter(Boolean);
@@ -364,10 +414,10 @@ async function analyze() {
   }
   if (!parsed.length) {
     showProgress(false);
-    $("#status").textContent = "Не знайшов жодного валідного посилання на пост.";
-    setStatus($("#status"), "err");
-    $("#tableWrap").style.display = "none";
-    $("#totals").style.display = "none";
+    element("#status").textContent = "Не знайшов жодного валідного посилання на пост.";
+    setStatus(element("#status"), "err");
+    element("#tableWrap").style.display = "none";
+    element("#totals").style.display = "none";
     return;
   }
 
@@ -411,19 +461,19 @@ async function analyze() {
   const msg = [];
   if (bad.length) msg.push(`Пропущено невалідні рядки: ${bad.length}`);
   
-  $("#status").textContent = msg.join(" ");
-  setStatus($("#status"), msg.length ? "muted" : "");
+  element("#status").textContent = msg.join(" ");
+  setStatus(element("#status"), msg.length ? "muted" : "");
 }
 
 /* ---------- Логіка ПОШУКУ ПОСТІВ ---------- */
 
 async function searchPosts() {
-  const qRaw = ($("#searchText").value || "").trim();
-  const status = $("#searchStatus");
-  const list = $("#searchList");
-  const wrap = $("#searchResultsWrap");
-  const countEl = $("#searchCount");
-  const btnCopy = $("#copyLinksBtn");
+  const qRaw = (element("#searchText").value || "").trim();
+  const status = element("#searchStatus");
+  const list = element("#searchList");
+  const wrap = element("#searchResultsWrap");
+  const countEl = element("#searchCount");
+  const btnCopy = element("#copyLinksBtn");
 
   setStatus(status, "muted", "");
   list.innerHTML = "";
@@ -493,8 +543,8 @@ async function copyAllLinks() {
   const text = links.join("\n");
   try {
     await navigator.clipboard.writeText(text);
-    $("#searchStatus").textContent = "Посилання скопійовано у буфер.";
-    setStatus($("#searchStatus"), "ok");
+    element("#searchStatus").textContent = "Посилання скопійовано у буфер.";
+    setStatus(element("#searchStatus"), "ok");
   } catch {
     // Фолбек
     const ta = document.createElement("textarea");
@@ -502,17 +552,17 @@ async function copyAllLinks() {
     document.body.appendChild(ta);
     ta.select(); document.execCommand("copy");
     document.body.removeChild(ta);
-    $("#searchStatus").textContent = "Посилання скопійовано (fallback).";
-    setStatus($("#searchStatus"), "ok");
+    element("#searchStatus").textContent = "Посилання скопійовано (fallback).";
+    setStatus(element("#searchStatus"), "ok");
   }
 }
 
 /* ---------- Tabs ---------- */
 function switchTab(tab) {
-  const A = $("#analyticsSection");
-  const S = $("#searchSection");
-  const bA = $("#tabAnalytics");
-  const bS = $("#tabSearch");
+  const A = element("#analyticsSection");
+  const S = element("#searchSection");
+  const bA = element("#tabAnalytics");
+  const bS = element("#tabSearch");
 
   if (tab === "analytics") {
     A.style.display = "block"; S.style.display = "none";
@@ -527,33 +577,33 @@ function switchTab(tab) {
 document.addEventListener("DOMContentLoaded", () => {
   // Аналітика
   initSorting();
-  $("#analyze")?.addEventListener("click", analyze);
-  $("#export")?.addEventListener("click", () => {
+  element("#analyze")?.addEventListener("click", analyze);
+  element("#export")?.addEventListener("click", () => {
     const rows = window.__rows || [];
     if (!rows.length) {
-      $("#status").textContent = "Немає даних для експорту.";
-      setStatus($("#status"), "muted");
+      element("#status").textContent = "Немає даних для експорту.";
+      setStatus(element("#status"), "muted");
       return;
     }
     const csv = toCSV(rows);
     toBlobAndDownload("vk_analytics.csv", csv, "text/csv;charset=utf-8");
   });
-  $("#clear")?.addEventListener("click", () => {
-    $("#urls").value = "";
-    $("#tableWrap").style.display = "none";
-    $("#totals").style.display = "none";
-    $("#status").textContent = "Очищено.";
-    setStatus($("#status"), "muted");
+  element("#clear")?.addEventListener("click", () => {
+    element("#urls").value = "";
+    element("#tableWrap").style.display = "none";
+    element("#totals").style.display = "none";
+    element("#status").textContent = "Очищено.";
+    setStatus(element("#status"), "muted");
     showProgress(false);
     window.__rows = [];
     window.__totals = {};
   });
 
   // Пошук
-  $("#searchBtn")?.addEventListener("click", searchPosts);
-  $("#copyLinksBtn")?.addEventListener("click", copyAllLinks);
+  element("#searchBtn")?.addEventListener("click", searchPosts);
+  element("#copyLinksBtn")?.addEventListener("click", copyAllLinks);
 
   // Tabs
-  $("#tabAnalytics")?.addEventListener("click", () => switchTab("analytics"));
-  $("#tabSearch")?.addEventListener("click", () => switchTab("search"));
+  element("#tabAnalytics")?.addEventListener("click", () => switchTab("analytics"));
+  element("#tabSearch")?.addEventListener("click", () => switchTab("search"));
 });
