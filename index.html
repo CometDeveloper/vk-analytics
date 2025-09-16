@@ -8,10 +8,14 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
   </head>
   <body>
+    <!--
+    
     <div class="under-maintenance">
       <p>Застосунок тимчасово не працює.</p>
       <p>Проводяться ремонтні роботи.</p>
     </div>
+    
+    -->
 
     <main class="container">
       <h1>Аналітика постів Vkontakte</h1>
@@ -20,18 +24,18 @@
       <div class="grid-2 global-controls">
         <div>
           <label for="version">API версія</label>
-          <input id="version" type="text" value="5.199" />
+          <input disabled id="version" type="text" value="5.199" />
         </div>
         <div>
           <label for="batch">Розмір батчу</label>
-          <input id="batch" type="text" value="100" />
+          <input disabled id="batch" type="text" value="100" />
         </div>
       </div>
 
       <!-- Tabs -->
       <div class="tabs">
         <button id="tabAnalytics" class="tab active">Аналітика</button>
-        <button id="tabSearch" class="tab">Пошук постів</button>
+        <button disabled id="tabSearch" class="tab">Пошук постів (В розробці)</button>
       </div>
 
       <!-- Аналітика -->
