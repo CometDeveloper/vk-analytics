@@ -8,15 +8,6 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
   </head>
   <body>
-    <!--
-    
-    <div class="under-maintenance">
-      <p>Застосунок тимчасово не працює.</p>
-      <p>Проводяться ремонтні роботи.</p>
-    </div>
-    
-    -->
-
     <main class="container">
       <h1>Аналітика постів Vkontakte</h1>
 
@@ -45,11 +36,14 @@
 
         <div class="btns">
           <button id="analyze" class="primary">Зібрати метрики</button>
-          <button id="export" class="secondary">Експорт CSV</button>
-          <button id="clear" class="secondary">Очистити</button>
+          <button id="export" class="secondary" disabled>Експорт Excel</button>
+          <button id="analytics-clear" class="secondary">Очистити</button>
         </div>
 
-        <p id="important-info" class="status muted">Важливо: застосунок не має доступу до постів, які видалені або опубліковані в закритих спільнотах. Посилання на такі пости будуть виділені червоним в таблиці.</p>
+        <p id="analyticsInfo" class="status muted">
+          Важливо: застосунок не має доступу до постів, які видалені або опубліковані в закритих спільнотах.
+          Посилання на такі пости будуть виділені червоним в таблиці.
+        </p>
 
         <!-- Прогрес-бар -->
         <div id="progress" class="progress" style="display:none;">
@@ -58,26 +52,38 @@
         </div>
 
         <div id="status" class="status muted"></div>
-        <div class="stats" id="totals" style="display:none;"></div>
 
-        <div id="tableWrap" class="results-box table-wrap" style="display: none;">
+        <!-- Плашка із підсумками -->
+        <div class="stats" id="totals" style="display:none;">
+          <div><strong>Аналітика</strong></div>
+          <br>
+          <div>Кількість постів: <strong class="posts">0</strong> (Недоступні: <strong class="missing">0</strong>)</div>
+          <br>
+          <div>Охоплення: <strong class="reach">0</strong></div>
+          <div>Перегляди: <strong class="views">0</strong></div>
+          <div>Коментарі: <strong class="comments">0</strong></div>
+          <div>Реакції: <strong class="likes">0</strong></div>
+          <div>Поширення: <strong class="reposts">0</strong></div>
+        </div>
+
+        <div id="tableWrap" class="results-box table-wrap" style="display:none;">
           <table id="table">
             <thead id="tableHead">
               <tr>
                 <th>Посилання на пост</th>
-                <th class="right sortable" data-sort="group_members">
+                <th class="sortable" data-sort="group_members">
                   <span class="th-inner">Охоплення <span class="arrow"></span></span>
                 </th>
-                <th class="right sortable" data-sort="views">
+                <th class="sortable" data-sort="views">
                   <span class="th-inner">Перегляди <span class="arrow"></span></span>
                 </th>
-                <th class="right sortable" data-sort="comments">
+                <th class="sortable" data-sort="comments">
                   <span class="th-inner">Коментарі <span class="arrow"></span></span>
                 </th>
-                <th class="right sortable" data-sort="likes">
+                <th class="sortable" data-sort="likes">
                   <span class="th-inner">Реакції <span class="arrow"></span></span>
                 </th>
-                <th class="right sortable" data-sort="reposts">
+                <th class="sortable" data-sort="reposts">
                   <span class="th-inner">Поширення <span class="arrow"></span></span>
                 </th>
               </tr>
@@ -95,13 +101,17 @@
         <div class="btns">
           <button id="searchBtn" class="primary">Шукати пости</button>
           <button id="copyLinksBtn" class="secondary" disabled>Скопіювати всі посилання</button>
+          <button id="search-clear" class="secondary">Очистити</button>
         </div>
 
-        <p id="important-info" class="status muted">Важливо: результат пошуку може включати пости, які не пов'язані з вашим матеріалом. Рекомендується перевіряти кожне знайдене посилання окремо.</p>
+        <p id="searchInfo" class="status muted">
+          Важливо: результат пошуку може включати пости, які не пов'язані з вашим матеріалом.
+          Рекомендується перевіряти кожне знайдене посилання окремо.
+        </p>
 
         <p id="searchStatus" class="status muted"></p>
 
-        <div id="searchResultsWrap" class="results-box list-wrap" style="display: none;">
+        <div id="searchResultsWrap" class="results-box list-wrap" style="display:none;">
           <div class="list-head">
             Знайдено: <span id="searchCount">0</span>
           </div>
@@ -110,6 +120,6 @@
       </section>
     </main>
 
-    <script src="script.js"></script>
+    <script type="module" src="./js/main.js"></script>
   </body>
 </html>
